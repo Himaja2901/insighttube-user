@@ -1,0 +1,9 @@
+My name is Himaja.
+
+I am a B.Tech Computer Science Engineering student specializing in Cyber Security.
+
+My technical skills include Java, Python, HTML, CSS, JavaScript, React.js, and GitHub.
+
+I have worked on web development and AI-based projects.
+
+I am interested in cybersecurity, web development, and Generative AI.
