@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
+type ResearchRecord = {
+  id: string;
+  fileName: string;
+  summary: string;
+  keyInsights: string[];
+  uploadedAt: string;
+};
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -12,6 +18,44 @@ export default function Home() {
   const [asking, setAsking] = useState(false);
   const [summary, setSummary] = useState("");
   const [keyInsights, setKeyInsights] = useState<string[]>([]);
+  const [researchHistory, setResearchHistory] = useState<ResearchRecord[]>([]);
+const [historyLoading, setHistoryLoading] = useState(true);
+
+
+const loadResearchHistory = async () => {
+  try {
+    const response = await fetch("/api/research-history");
+
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!response.ok || !contentType.includes("application/json")) {
+      console.error(
+        "Research History API returned an unexpected response:",
+        response.status,
+        await response.text()
+      );
+      return;
+    }
+
+    const data = await response.json();
+
+    if (data.success && Array.isArray(data.history)) {
+      setResearchHistory(data.history);
+    } else {
+      console.error("Unexpected Research History response:", data);
+    }
+  } catch (error) {
+    console.error("Failed to load research history:", error);
+  } finally {
+    setHistoryLoading(false);
+  }
+};
+
+  
+
+useEffect(() => {
+  loadResearchHistory();
+}, []);
 
   const handleUpload = async () => {
     if (!selectedFile) {
@@ -46,6 +90,7 @@ export default function Home() {
       setDocumentText(data.text);
       setSummary(data.summary);
       setKeyInsights(data.keyInsights);
+      await loadResearchHistory();
     } catch (error) {
       console.error("Upload request failed:", error);
       setMessage("❌ Something went wrong while uploading.");
@@ -357,6 +402,76 @@ export default function Home() {
         </section>
 
         {/* Results */}
+        
+{/* Research History */}
+<section className="mx-auto mt-8 max-w-4xl rounded-2xl border border-purple-100 bg-white p-6 shadow-sm">
+  <div className="mb-5 flex items-center justify-between gap-3">
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">
+        Research History
+      </h2>
+      <p className="mt-1 text-sm text-gray-500">
+        Revisit your previously analyzed documents.
+      </p>
+    </div>
+
+    <button
+      onClick={loadResearchHistory}
+      className="rounded-lg border border-purple-200 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50"
+    >
+      Refresh
+    </button>
+  </div>
+
+  {historyLoading ? (
+    <p className="text-sm text-gray-500">Loading research history...</p>
+  ) : researchHistory.length === 0 ? (
+    <div className="rounded-xl bg-gray-50 p-6 text-center">
+      <p className="font-medium text-gray-700">
+        No research history yet
+      </p>
+      <p className="mt-2 text-sm text-gray-500">
+        Upload a document to see its summary and insights here.
+      </p>
+    </div>
+  ) : (
+    <div className="space-y-4">
+      {researchHistory.map((record) => (
+        <article
+          key={record.id}
+          className="rounded-xl border border-gray-200 p-4"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <h3 className="break-words font-semibold text-gray-900">
+              📄 {record.fileName}
+            </h3>
+            <p className="shrink-0 text-xs text-gray-500">
+              {new Date(record.uploadedAt).toLocaleDateString()}
+            </p>
+          </div>
+
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            {record.summary}
+          </p>
+
+          {record.keyInsights?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">
+                Key Insights
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
+                {record.keyInsights.map((insight, index) => (
+                  <li key={index}>{insight}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </article>
+      ))}
+    </div>
+  )}
+</section>
+
         {documentText && (
           <div className="mx-auto mt-8 max-w-4xl space-y-6">
             {/* Document Information Card */}

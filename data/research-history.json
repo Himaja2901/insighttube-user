@@ -1,0 +1,44 @@
+[
+  {
+    "id": "ab3cc2c8-882a-4604-ad15-63410f8d9747",
+    "fileName": "sample-research.txt",
+    "summary": "Title: AI-Based Plant Disease Detection Abstract: This research explores the use of machine learning to detect plant diseases from leaf images. Early detection can help farmers reduce crop losses and improve agricultural productivity. Methodology: The system processes leaf images and uses image classification techniques to identify possible plant diseases.",
+    "keyInsights": [
+      "The document contains research-related information.",
+      "The document discusses findings or conclusions.",
+      "The document mentions limitations or future work."
+    ],
+    "uploadedAt": "2026-10-13T08:41:47.587Z"
+  },
+  {
+    "id": "da6ef126-238a-4895-8877-757b83c41942",
+    "fileName": "sample-research.txt",
+    "summary": "Title: AI-Based Plant Disease Detection Abstract: This research explores the use of machine learning to detect plant diseases from leaf images. Early detection can help farmers reduce crop losses and improve agricultural productivity. Methodology: The system processes leaf images and uses image classification techniques to identify possible plant diseases.",
+    "keyInsights": [
+      "The document contains research-related information.",
+      "The document discusses findings or conclusions.",
+      "The document mentions limitations or future work."
+    ],
+    "uploadedAt": "2026-10-13T08:40:27.278Z"
+  },
+  {
+    "id": "16608e01-9dfe-4ebf-b6c5-a57f53621110",
+    "fileName": "sample-research.txt",
+    "summary": "Title: AI-Based Plant Disease Detection Abstract: This research explores the use of machine learning to detect plant diseases from leaf images. Early detection can help farmers reduce crop losses and improve agricultural productivity. Methodology: The system processes leaf images and uses image classification techniques to identify possible plant diseases.",
+    "keyInsights": [
+      "The document contains research-related information.",
+      "The document discusses findings or conclusions.",
+      "The document mentions limitations or future work."
+    ],
+    "uploadedAt": "2026-10-13T08:20:58.101Z"
+  },
+  {
+    "id": "8e2a99a1-29e9-4508-9291-e33708ed2617",
+    "fileName": "Yandrapu_Himaja_Resume_2_Pages.pdf",
+    "summary": "YANDRAPU HIMAJA \u0000 +91 9133126622 | ✉ himajayandrapu06@gmail. com | \u0000 Visakhapatnam, Andhra Pradesh LinkedIn: linkedin. com/in/himaja-yandrapu-03a228405 PROFESSIONAL SUMMARY Motivated Computer Science Engineering (Cyber Security) undergraduate with a strong interest in cybersecurity, web development, and Generative AI technologies.",
+    "keyInsights": [
+      "Text was extracted successfully and is ready for review."
+    ],
+    "uploadedAt": "2026-10-13T08:19:23.333Z"
+  }
+]
