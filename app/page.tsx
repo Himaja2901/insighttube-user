@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 type ResearchRecord = {
   id: string;
   fileName: string;
   summary: string;
   keyInsights: string[];
-  uploadedAt: string;
+  createdAt: string;
 };
+
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
