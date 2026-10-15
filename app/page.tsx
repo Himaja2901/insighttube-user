@@ -37,8 +37,22 @@ const loadResearchHistory = async () => {
       return;
     }
 
-    const data = await response.json();
+    
+const responseText = await response.text();
 
+if (!responseText.trim()) {
+  console.error("Research History API returned an empty response.");
+  return;
+}
+
+let data;
+
+try {
+  data = JSON.parse(responseText);
+} catch (error) {
+  console.error("Research History API returned invalid JSON:", responseText);
+  return;
+}
     if (data.success && Array.isArray(data.history)) {
       setResearchHistory(data.history);
     } else {
@@ -57,47 +71,60 @@ useEffect(() => {
   loadResearchHistory();
 }, []);
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setMessage("Please choose a document first.");
+  
+const handleUpload = async () => {
+  if (!selectedFile) {
+    setMessage("Please choose a document first.");
+    return;
+  }
+
+  setUploading(true);
+  setMessage("");
+  setAnswer("");
+  setQuestion("");
+
+  try {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const responseText = await response.text();
+
+    let data;
+
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      console.error("Upload API returned non-JSON response:", responseText);
+      setMessage("The server returned an invalid response. Check the terminal.");
       return;
     }
 
-    setUploading(true);
-    setMessage("");
-    setAnswer("");
-    setQuestion("");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setMessage(data.error || "Upload failed.");
-        return;
-      }
-
-      console.log("Extracted document text:", data.text);
-
-      setMessage("✅ Document uploaded successfully!");
-      setDocumentText(data.text);
-      setSummary(data.summary);
-      setKeyInsights(data.keyInsights);
-      await loadResearchHistory();
-    } catch (error) {
-      console.error("Upload request failed:", error);
-      setMessage("❌ Something went wrong while uploading.");
-    } finally {
-      setUploading(false);
+    if (!response.ok) {
+      console.error("Upload failed:", response.status, data);
+      setMessage(data.error || data.message || "Upload failed.");
+      return;
     }
-  };
+
+    console.log("Extracted document text:", data.text);
+
+    setMessage("✅ Document uploaded successfully!");
+    setDocumentText(data.text);
+    setSummary(data.summary);
+    setKeyInsights(data.keyInsights);
+
+    await loadResearchHistory();
+  } catch (error) {
+    console.error("Upload request failed:", error);
+    setMessage("❌ Something went wrong while uploading.");
+  } finally {
+    setUploading(false);
+  }
+};
 
    const handleAskAI = () => {
     if (!question.trim()) {
@@ -446,7 +473,7 @@ useEffect(() => {
               📄 {record.fileName}
             </h3>
             <p className="shrink-0 text-xs text-gray-500">
-              {new Date(record.uploadedAt).toLocaleDateString()}
+              {new Date(record.createdAt).toLocaleDateString()}
             </p>
           </div>
 
