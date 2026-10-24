@@ -19,6 +19,7 @@ export default function Home() {
   const [answer, setAnswer] = useState("");
   const [asking, setAsking] = useState(false);
   const [summary, setSummary] = useState("");
+  const [summaryLanguage, setSummaryLanguage] = useState("English");
   const [keyInsights, setKeyInsights] = useState<string[]>([]);
   const [researchHistory, setResearchHistory] = useState<ResearchRecord[]>([]);
 const [historyLoading, setHistoryLoading] = useState(true);
@@ -87,7 +88,8 @@ const handleUpload = async () => {
 
   try {
     const formData = new FormData();
-    formData.append("file", selectedFile);
+formData.append("file", selectedFile);
+formData.append("language", summaryLanguage);
 
     const response = await fetch("/api/upload", {
       method: "POST",
@@ -360,6 +362,37 @@ const handleUpload = async () => {
             <p className="mt-2 text-xs font-medium text-purple-500">
               Supported formats: PDF, DOCX, TXT
             </p>
+            <div className="mx-auto mt-5 max-w-sm text-left">
+  <label
+    htmlFor="summary-language"
+    className="mb-2 block text-sm font-semibold text-gray-700"
+  >
+    Summary Language
+  </label>
+
+  <select
+    id="summary-language"
+    value={summaryLanguage}
+    onChange={(event) => setSummaryLanguage(event.target.value)}
+    className="w-full rounded-xl border border-purple-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+  >
+    <option value="English">English</option>
+    <option value="Telugu">Telugu (తెలుగు)</option>
+    <option value="Hindi">Hindi (हिन्दी)</option>
+    <option value="Tamil">Tamil (தமிழ்)</option>
+    <option value="Kannada">Kannada (ಕನ್ನಡ)</option>
+    <option value="Malayalam">Malayalam (മലയാളം)</option>
+    <option value="Spanish">Spanish</option>
+    <option value="French">French</option>
+    <option value="German">German</option>
+    <option value="Japanese">Japanese</option>
+    <option value="Chinese">Chinese</option>
+  </select>
+
+  <p className="mt-2 text-xs text-gray-500">
+    Choose the language for your AI-generated document summary.
+  </p>
+</div>
 
             <label className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-200 transition hover:bg-purple-700 hover:shadow-purple-300">
               📁 Choose File
