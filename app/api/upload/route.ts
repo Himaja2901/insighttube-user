@@ -22,9 +22,8 @@ GlobalWorkerOptions.workerSrc = pathToFileURL(
   )
 ).href;
 
-// Generate an AI summary using the local Ollama model.
-
- // Generate summaries with Gemini in production and Ollama locally.
+// Generate a document summary using Gemini in production
+// or Ollama during local development.
 async function createSummary(
   text: string,
   language: string
@@ -47,6 +46,7 @@ async function createSummary(
     ? language
     : "English";
 
+  // Limit input size to control processing time and token usage.
   const documentContent = text.slice(0, 12000);
 
   const systemPrompt =
@@ -60,115 +60,218 @@ async function createSummary(
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
 
-  // Use Gemini when the server has a Gemini API key.
+  // Production: use Gemini when an API key is configured.
   if (geminiApiKey) {
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": geminiApiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          contents: [
+    const models = [
+      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+    ];
+
+    let lastError = "Gemini is temporarily unavailable.";
+
+    for (const model of models) {
+      let tryNextModel = false;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        let response: Response;
+
+        try {
+          response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
             {
-              role: "user",
-              parts: [
-                {
-                  text: `Summarize this document:\n\n${documentContent}`,
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": geminiApiKey,
+              },
+              body: JSON.stringify({
+                systemInstruction: {
+                  parts: [{ text: systemPrompt }],
                 },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 600,
-          },
-        }),
+                contents: [
+                  {
+                    role: "user",
+                    parts: [
+                      {
+                        text:
+                          `Summarize this document:\n\n${documentContent}`,
+                      },
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  temperature: 0.2,
+                  maxOutputTokens: 600,
+                },
+              }),
+              signal: AbortSignal.timeout(45000),
+            }
+          );
+        } catch (error) {
+          lastError =
+            error instanceof Error
+              ? error.message
+              : "Gemini network request failed.";
+
+          console.error(
+            `Gemini request failed for ${model}:`,
+            lastError
+          );
+
+          if (attempt < 2) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 * 2 ** attempt)
+            );
+            continue;
+          }
+
+          tryNextModel = true;
+          break;
+        }
+
+        if (response.ok) {
+          const result = await response.json();
+
+          const summary = result.candidates?.[0]?.content?.parts
+            ?.map((part: { text?: string }) => part.text ?? "")
+            .join("")
+            .trim();
+
+          if (summary) {
+            console.log("Gemini model used:", model);
+            return summary;
+          }
+
+          lastError =
+            "Gemini returned no summary. The response may have been blocked.";
+
+          console.error(
+            lastError,
+            JSON.stringify(result.promptFeedback ?? {})
+          );
+
+          // An empty or blocked response is not fixed by retrying
+          // the same request repeatedly.
+          throw new Error(lastError);
+        }
+
+        const errorDetails = await response.text();
+
+        // Log the API response but never log the API key.
+        console.error(
+          `Gemini ${model} failed:`,
+          response.status,
+          errorDetails.slice(0, 1000)
+        );
+
+        lastError =
+          `Gemini returned HTTP ${response.status}.`;
+
+        // Retry temporary overload and rate-limit errors.
+        if (
+          (response.status === 503 || response.status === 429) &&
+          attempt < 2
+        ) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * 2 ** attempt)
+          );
+          continue;
+        }
+
+        // Switch models only when the current model is overloaded
+        // or rate limited. Other errors need a configuration fix.
+        if (response.status === 503 || response.status === 429) {
+          tryNextModel = true;
+          break;
+        }
+
+        throw new Error(lastError);
       }
+
+      if (!tryNextModel) {
+        break;
+      }
+
+      console.warn(
+        `Trying the next Gemini model after ${model} failed.`
+      );
+    }
+
+    throw new Error(
+      `${lastError} Please try uploading again later.`
     );
-
-    if (!response.ok) {
-      const errorDetails = await response.text();
-
-      // Do not log the API key.
-      console.error(
-        "Gemini summarization failed:",
-        response.status,
-        errorDetails.slice(0, 1000)
-      );
-
-      throw new Error(
-        `Gemini summarization failed with status ${response.status}.`
-      );
-    }
-
-    const result = await response.json();
-
-    const summary = result.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part.text ?? "")
-      .join("")
-      .trim();
-
-    if (!summary) {
-      console.error(
-        "Gemini returned no summary.",
-        JSON.stringify(result.promptFeedback ?? {})
-      );
-      throw new Error("Gemini returned an empty summary.");
-    }
-
-    return summary;
   }
 
-  // Local development fallback: use Ollama when no Gemini key is configured.
-  const response = await fetch("http://localhost:11434/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "qwen2.5:3b",
-      stream: false,
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Summarize this document:\n\n${documentContent}`,
-        },
-      ],
-      options: {
-        temperature: 0.2,
-        num_predict: 300,
+  // Local development fallback: use Ollama when no Gemini key exists.
+  const ollamaResponse = await fetch(
+    "http://localhost:11434/api/chat",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      keep_alive: "10m",
-    }),
-  });
+      body: JSON.stringify({
+        model: "qwen2.5:3b",
+        stream: false,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content:
+              `Summarize this document:\n\n${documentContent}`,
+          },
+        ],
+        options: {
+          temperature: 0.2,
+          num_predict: 300,
+        },
+        keep_alive: "10m",
+      }),
+      signal: AbortSignal.timeout(120000),
+    }
+  );
 
-  if (!response.ok) {
-    const errorDetails = await response.text();
+  if (!ollamaResponse.ok) {
+    const errorDetails = await ollamaResponse.text();
+
     console.error(
       "Ollama summarization failed:",
-      response.status,
+      ollamaResponse.status,
       errorDetails.slice(0, 1000)
     );
+
     throw new Error("Local AI summarization failed.");
   }
 
-  const result = await response.json();
-  const summary = result.message?.content?.trim();
+  const ollamaResult = await ollamaResponse.json();
+  const localSummary = ollamaResult.message?.content?.trim();
 
-  if (!summary) {
+  if (!localSummary) {
     throw new Error("The local AI returned an empty summary.");
   }
 
-  return summary;
-}
+  console.log("Ollama performance:", {
+    modelLoadSeconds:
+      typeof ollamaResult.load_duration === "number"
+        ? (ollamaResult.load_duration / 1e9).toFixed(2)
+        : "not reported",
+    promptProcessingSeconds:
+      typeof ollamaResult.prompt_eval_duration === "number"
+        ? (ollamaResult.prompt_eval_duration / 1e9).toFixed(2)
+        : "not reported",
+    generationSeconds:
+      typeof ollamaResult.eval_duration === "number"
+        ? (ollamaResult.eval_duration / 1e9).toFixed(2)
+        : "not reported",
+    promptTokens: ollamaResult.prompt_eval_count,
+    generatedTokens: ollamaResult.eval_count,
+  });
 
+  return localSummary;
+}
 
 // Extract basic document insights without an additional AI request.
 function createKeyInsights(text: string): string[] {
@@ -360,12 +463,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate key insights and measure their processing time.
+    // Generate key insights.
     console.time("Key insights");
     const keyInsights = createKeyInsights(text);
     console.timeEnd("Key insights");
 
-    // Generate the summary and measure AI processing time.
+    // Generate the AI summary.
     console.time("AI summarization");
 
     let summary: string;
@@ -421,6 +524,7 @@ export async function POST(request: Request) {
       keyInsights,
     });
   } catch (error) {
+    // Detailed diagnostics go to server logs, not the client response.
     console.error("UPLOAD ERROR:", error);
 
     return NextResponse.json(
